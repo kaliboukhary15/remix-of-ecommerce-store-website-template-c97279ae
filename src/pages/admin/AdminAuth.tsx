@@ -21,6 +21,8 @@ const AdminAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     document.title = "Admin Login";
@@ -68,6 +70,27 @@ const AdminAuth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const emailCheck = z.string().trim().email("Invalid email").safeParse(email);
+    if (!emailCheck.success) {
+      toast.error(emailCheck.error.errors[0].message);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailCheck.data, {
+        redirectTo: `${window.location.origin}/admin/auth`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+      toast.success("Password reset email sent. Check your inbox.");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to send reset email");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
       <Card className="w-full max-w-md p-8">
@@ -75,43 +98,98 @@ const AdminAuth = () => {
         <p className="text-sm text-muted-foreground text-center mb-6">
           Authorized administrators only
         </p>
-        <Tabs defaultValue="signin">
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-          {(["signin", "signup"] as const).map((mode) => (
-            <TabsContent key={mode} value={mode} className="space-y-4">
-              <div>
-                <Label htmlFor={`${mode}-email`}>Email</Label>
-                <Input
-                  id={`${mode}-email`}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                />
+
+        {forgotMode ? (
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-center">Reset Password</h2>
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  A password reset link has been sent to <strong>{email}</strong>.
+                </p>
+                <Button variant="outline" className="w-full" onClick={() => { setForgotMode(false); setResetSent(false); }}>
+                  Back to Sign In
+                </Button>
               </div>
-              <div>
-                <Label htmlFor={`${mode}-password`}>Password</Label>
-                <Input
-                  id={`${mode}-password`}
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                />
-              </div>
-              <Button
-                className="w-full"
-                disabled={submitting}
-                onClick={() => handleSubmit(mode)}
-              >
-                {submitting ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
-              </Button>
-            </TabsContent>
-          ))}
-        </Tabs>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    placeholder="nouemestah@gmail.com"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={submitting}
+                  onClick={handleForgotPassword}
+                >
+                  {submitting ? "Please wait…" : "Send Reset Link"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Back to Sign In
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <Tabs defaultValue="signin">
+            <TabsList className="grid grid-cols-2 mb-6">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            {(["signin", "signup"] as const).map((mode) => (
+              <TabsContent key={mode} value={mode} className="space-y-4">
+                <div>
+                  <Label htmlFor={`${mode}-email`}>Email</Label>
+                  <Input
+                    id={`${mode}-email`}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    placeholder="nouemestah@gmail.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`${mode}-password`}>Password</Label>
+                  <Input
+                    id={`${mode}-password`}
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={submitting}
+                  onClick={() => handleSubmit(mode)}
+                >
+                  {submitting ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
+                </Button>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={() => setForgotMode(true)}
+                    className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
       </Card>
     </div>
   );
